@@ -4,9 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#070a13">
-  <title>LUDO MASTER PRO - Realtime Edition</title>
+  <title>LUDO MASTER PRO - Arena</title>
   
-  <!-- Firebase Compat Libraries -->
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
   
@@ -59,6 +58,30 @@
       position: relative;
     }
 
+    .top-bar {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(17, 24, 39, 0.85);
+      border-radius: 12px;
+      padding: 8px 12px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .coin-badge {
+      background: rgba(251, 191, 36, 0.15);
+      border: 1px solid rgba(251, 191, 36, 0.4);
+      color: var(--gold);
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-weight: 800;
+      font-size: 0.85rem;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
     .screen {
       display: none;
       width: 100%;
@@ -79,16 +102,7 @@
       gap: 12px;
       text-align: center;
       box-shadow: 0 10px 30px rgba(0,0,0,0.6);
-      margin-top: 25px;
-    }
-
-    .lobby-title {
-      font-size: 2.2rem;
-      font-weight: 900;
-      background: linear-gradient(135deg, #fbbf24, #ef4444);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      margin-bottom: 2px;
+      margin-top: 15px;
     }
 
     .input-field {
@@ -156,7 +170,6 @@
       align-items: center;
       justify-content: center;
       font-size: 1.25rem;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.4);
       position: relative;
     }
 
@@ -182,7 +195,6 @@
     .details h4 {
       font-size: 0.9rem;
       font-weight: 800;
-      letter-spacing: 0.3px;
     }
 
     .status-chip {
@@ -203,21 +215,29 @@
       margin-left: 6px;
     }
 
-    .mic-btn {
+    .ctrl-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .ctrl-btn {
       background: rgba(255, 255, 255, 0.1);
       border: 1px solid rgba(255, 255, 255, 0.2);
       color: #fff;
-      padding: 6px 10px;
+      padding: 6px 9px;
       border-radius: 8px;
-      font-size: 0.85rem;
+      font-size: 0.78rem;
       cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 4px;
+      font-weight: 700;
     }
-    .mic-btn.active {
+    .ctrl-btn.active {
       background: #22c55e;
       border-color: #16a34a;
+    }
+    .ctrl-btn.muted {
+      background: #ef4444;
+      border-color: #dc2626;
     }
 
     .board-frame {
@@ -251,7 +271,6 @@
     .chat-emoji {
       font-size: 1.3rem;
       cursor: pointer;
-      transition: transform 0.1s;
     }
     .chat-emoji:active { transform: scale(1.3); }
 
@@ -276,7 +295,6 @@
       color: #38bdf8;
       text-align: center;
       min-height: 20px;
-      text-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
     }
 
     .dice-wrap {
@@ -298,7 +316,6 @@
       cursor: pointer;
       position: relative;
     }
-
     .dice-cube:active { transform: translateY(3px); box-shadow: 0 1px 0 #94a3b8; }
     .dice-cube.rolling { animation: diceSpin 0.38s cubic-bezier(0.25, 1, 0.5, 1); }
 
@@ -330,24 +347,89 @@
     .dice-cube[data-val="4"] .dp1, .dice-cube[data-val="4"] .dp3, .dice-cube[data-val="4"] .dp7, .dice-cube[data-val="4"] .dp9 { display: block; }
     .dice-cube[data-val="5"] .dp1, .dice-cube[data-val="5"] .dp3, .dice-cube[data-val="5"] .dp5, .dice-cube[data-val="5"] .dp7, .dice-cube[data-val="5"] .dp9 { display: block; }
     .dice-cube[data-val="6"] .dp1, .dice-cube[data-val="6"] .dp3, .dice-cube[data-val="6"] .dp4, .dice-cube[data-val="6"] .dp6, .dice-cube[data-val="6"] .dp7, .dice-cube[data-val="6"] .dp9 { display: block; }
+
+    /* Keyboard Chat Drawer */
+    .chat-drawer {
+      position: fixed;
+      bottom: -100%;
+      left: 0;
+      width: 100%;
+      height: 60vh;
+      max-height: 420px;
+      background: rgba(15, 23, 42, 0.98);
+      backdrop-filter: blur(12px);
+      border-top: 2px solid var(--gold);
+      border-radius: 20px 20px 0 0;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      transition: bottom 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: 0 -10px 40px rgba(0,0,0,0.8);
+      padding: 12px;
+    }
+    .chat-drawer.open { bottom: 0; }
+
+    .chat-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      font-weight: 800;
+      color: var(--gold);
+    }
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .chat-bubble {
+      padding: 8px 12px;
+      border-radius: 12px;
+      max-width: 80%;
+      font-size: 0.88rem;
+      word-break: break-word;
+    }
+    .chat-bubble.mine {
+      align-self: flex-end;
+      background: #2563eb;
+      color: #fff;
+    }
+    .chat-bubble.theirs {
+      align-self: flex-start;
+      background: #334155;
+      color: #fff;
+    }
+    .chat-input-row {
+      display: flex;
+      gap: 6px;
+      padding-top: 6px;
+    }
   </style>
 </head>
 <body>
 
   <div id="game-shell">
+    <div class="top-bar">
+      <div style="font-weight: 800; font-size: 0.9rem;" id="player-profile-name">Player</div>
+      <div class="coin-badge">🟡 <span id="player-coin-count">1000</span> Coins</div>
+      <button class="ctrl-btn" style="background:#ef4444;" onclick="logout()">Logout</button>
+    </div>
+
     <!-- Lobby Screen -->
     <div id="screen-lobby" class="screen active">
       <div class="lobby-box">
-        <div class="lobby-title">LUDO PRO</div>
-        <p style="color:var(--text-muted); font-size:0.85rem;">Multiplayer Realtime & Voice Edition</p>
+        <h2 style="color:var(--gold);">MATCHMAKING</h2>
+        <p style="font-size:0.8rem; color:var(--text-muted);">Fee: 100 Virtual Coins / Match</p>
 
-        <input type="text" id="player-name" class="input-field" placeholder="Enter Your Name" value="Player 1">
-        
-        <button id="btn-create-room" class="btn-main btn-gold" onclick="createRoom()">👑 CREATE PRIVATE ROOM</button>
+        <button class="btn-main btn-gold" onclick="createRoom()">👑 CREATE ROOM</button>
         
         <div style="display:flex; gap:6px;">
           <input type="text" id="room-code-input" class="input-field" placeholder="Room Code">
-          <button id="btn-join-room" class="btn-main" style="width:110px;" onclick="joinRoom()">JOIN</button>
+          <button class="btn-main" style="width:110px;" onclick="joinRoom()">JOIN</button>
         </div>
 
         <div style="border-top:1px solid rgba(255,255,255,0.1); margin:4px 0;"></div>
@@ -357,7 +439,7 @@
 
     <!-- Active Game Screen -->
     <div id="screen-game" class="screen">
-      <!-- Top Deck (Yellow Opponent) -->
+      <!-- Opponent Deck -->
       <div id="deck-yellow" class="deck">
         <div class="player-profile">
           <div id="avatar-yellow-box" class="avatar-circle avatar-yellow">
@@ -385,7 +467,7 @@
         <canvas id="boardCanvas" width="600" height="600"></canvas>
       </div>
 
-      <!-- Bottom Deck (Red Player) -->
+      <!-- Player Deck (Red) -->
       <div id="deck-red" class="deck active-turn">
         <div class="player-profile">
           <div id="avatar-red-box" class="avatar-circle avatar-red">
@@ -398,8 +480,10 @@
             <span id="timer-red" class="turn-timer"></span>
           </div>
         </div>
-        <div style="display:flex; align-items:center; gap:8px;">
-          <button id="mic-toggle-btn" class="mic-btn" onclick="toggleVoiceChat()">🎙️ Mic Off</button>
+        <div class="ctrl-group">
+          <button id="mic-toggle-btn" class="ctrl-btn" onclick="toggleVoiceChat()">🎙️ Mic Off</button>
+          <button id="speaker-toggle-btn" class="ctrl-btn" onclick="toggleSpeaker()">🔊 On</button>
+          <button class="ctrl-btn" onclick="toggleChatDrawer()">💬 Chat</button>
           <div class="dice-wrap">
             <div id="dice-red" class="dice-cube" data-val="1">
               <div class="pip dp1" style="grid-area:1/1;"></div><div class="pip dp2" style="grid-area:1/2;"></div><div class="pip dp3" style="grid-area:1/3;"></div>
@@ -419,8 +503,20 @@
       </div>
     </div>
   </div>
-    <script>
-    /* Fast Direct Firebase Realtime Database Mapping */
+
+  <!-- In-Game Chat Drawer -->
+  <div id="chat-drawer" class="chat-drawer">
+    <div class="chat-header">
+      <span>ROOM CHAT</span>
+      <button class="ctrl-btn" style="padding:2px 8px;" onclick="toggleChatDrawer()">✕</button>
+    </div>
+    <div id="chat-messages" class="chat-messages"></div>
+    <div class="chat-input-row">
+      <input type="text" id="chat-text-input" class="input-field" placeholder="Type message..." maxlength="70" style="margin-bottom:0;" onkeydown="if(event.key==='Enter') sendChatMessage()">
+      <button class="btn-main" style="width:80px; padding:8px;" onclick="sendChatMessage()">Send</button>
+    </div>
+  </div>
+  <script>
     const firebaseConfig = {
       apiKey: "AIzaSyDnfIFlNgFAaY5k4DcpeanXnTYan_VaTg0",
       authDomain: "ludo-739f9.firebaseapp.com",
@@ -428,26 +524,41 @@
       projectId: "ludo-739f9",
       storageBucket: "ludo-739f9.firebasestorage.app",
       messagingSenderId: "256500867340",
-      appId: "1:256500867340:web:f31ce7983d4236f8df2929",
-      measurementId: "G-8SBL23PPBC"
+      appId: "1:256500867340:web:f31ce7983d4236f8df2929"
     };
 
-    let db = null;
-    try {
-      if (!firebase.apps.length) {
-        firebase.initializeApp(firebaseConfig);
-      }
-      db = firebase.database();
-    } catch (err) {
-      console.warn("Database Init:", err);
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // Session Management
+    const localUserData = JSON.parse(localStorage.getItem('ludo_user') || 'null');
+    if (!localUserData) {
+      window.location.href = 'index.html';
+    }
+    const currentUsername = localUserData.username;
+    let currentCoins = localUserData.coins || 1000;
+
+    document.getElementById('player-profile-name').innerText = currentUsername;
+    document.getElementById('player-coin-count').innerText = currentCoins;
+
+    function logout() {
+      localStorage.removeItem('ludo_user');
+      window.location.href = 'index.html';
     }
 
-    /* Ultra-Loud Dynamics Compressor Audio Synthesizer 2.0 */
-    class LoudAudioMaster {
-      constructor() {
-        this.ctx = null;
-        this.compressor = null;
+    function updateCoinsInDB(newAmount) {
+      currentCoins = newAmount;
+      document.getElementById('player-coin-count').innerText = currentCoins;
+      localUserData.coins = currentCoins;
+      localStorage.setItem('ludo_user', JSON.stringify(localUserData));
+      if (!localUserData.isGuest) {
+        db.ref('users/' + currentUsername).update({ coins: currentCoins });
       }
+    }
+
+    /* Sound Synthesizer */
+    class LoudAudioMaster {
+      constructor() { this.ctx = null; this.compressor = null; }
       init() {
         if (!this.ctx) {
           const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -531,10 +642,12 @@
     }
     const sound = new LoudAudioMaster();
 
-    /* WebRTC Peer-to-Peer Voice Chat Engine */
+    /* WebRTC Voice & Speaker Control */
     let localStream = null;
     let peerConnection = null;
+    let remoteAudioElement = null;
     let isMicOn = false;
+    let isSpeakerMuted = false;
     const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
     async function toggleVoiceChat() {
@@ -560,15 +673,26 @@
       }
     }
 
+    function toggleSpeaker() {
+      isSpeakerMuted = !isSpeakerMuted;
+      const spkBtn = document.getElementById('speaker-toggle-btn');
+      if (remoteAudioElement) remoteAudioElement.muted = isSpeakerMuted;
+      spkBtn.innerText = isSpeakerMuted ? '🔇 Muted' : '🔊 On';
+      spkBtn.classList.toggle('muted', isSpeakerMuted);
+    }
+
     function initVoicePeer() {
       if (!isOnline || !roomRef || !localStream) return;
       peerConnection = new RTCPeerConnection(rtcConfig);
       localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
 
       peerConnection.ontrack = (event) => {
-        const remoteAudio = new Audio();
-        remoteAudio.srcObject = event.streams[0];
-        remoteAudio.autoplay = true;
+        if (!remoteAudioElement) {
+          remoteAudioElement = new Audio();
+          remoteAudioElement.autoplay = true;
+        }
+        remoteAudioElement.srcObject = event.streams[0];
+        remoteAudioElement.muted = isSpeakerMuted;
         document.getElementById('avatar-yellow-box').classList.add('speaking');
       };
 
@@ -605,7 +729,41 @@
         }
       });
     }
-        /* Board Coordinates Matrix & Bottom Red Positioning */
+
+    /* Live Keyboard Chat Drawer */
+    function toggleChatDrawer() {
+      document.getElementById('chat-drawer').classList.toggle('open');
+    }
+
+    function sendChatMessage() {
+      const input = document.getElementById('chat-text-input');
+      const text = input.value.trim();
+      if (!text) return;
+
+      const payload = {
+        senderId: myPlayerId,
+        senderName: currentUsername,
+        text: text,
+        time: Date.now()
+      };
+
+      if (isOnline && roomRef) {
+        roomRef.child('chat').push(payload);
+      } else {
+        renderChatMessage(payload);
+      }
+      input.value = '';
+    }
+
+    function renderChatMessage(msg) {
+      const box = document.getElementById('chat-messages');
+      const div = document.createElement('div');
+      div.className = `chat-bubble ${msg.senderId === myPlayerId ? 'mine' : 'theirs'}`;
+      div.innerHTML = `<strong>${msg.senderName}:</strong> ${msg.text}`;
+      box.appendChild(div);
+      box.scrollTop = box.scrollHeight;
+    }
+    /* Board Geometry */
     const COMMON_PATH = [
       {r:6, c:1}, {r:6, c:2}, {r:6, c:3}, {r:6, c:4}, {r:6, c:5},
       {r:5, c:6}, {r:4, c:6}, {r:3, c:6}, {r:2, c:6}, {r:1, c:6}, {r:0, c:6},
@@ -622,15 +780,15 @@
     ];
 
     const HOME_PATHS = {
-      0: [{r:13, c:7}, {r:12, c:7}, {r:11, c:7}, {r:10, c:7}, {r:9, c:7}, {r:8, c:7}], // Red (Bottom Column)
-      2: [{r:1, c:7}, {r:2, c:7}, {r:3, c:7}, {r:4, c:7}, {r:5, c:7}, {r:6, c:7}]      // Yellow (Top Column)
+      0: [{r:13, c:7}, {r:12, c:7}, {r:11, c:7}, {r:10, c:7}, {r:9, c:7}, {r:8, c:7}],
+      2: [{r:1, c:7}, {r:2, c:7}, {r:3, c:7}, {r:4, c:7}, {r:5, c:7}, {r:6, c:7}]
     };
 
     const SAFE_POINTS = [0, 8, 13, 21, 26, 34, 39, 47];
 
     const BASES = {
-      0: [{r:10.8, c:1.8}, {r:10.8, c:3.8}, {r:12.8, c:1.8}, {r:12.8, c:3.8}], // Red (Bottom Left)
-      2: [{r:1.8, c:10.8}, {r:1.8, c:12.8}, {r:3.8, c:10.8}, {r:3.8, c:12.8}]  // Yellow (Top Right)
+      0: [{r:10.8, c:1.8}, {r:10.8, c:3.8}, {r:12.8, c:1.8}, {r:12.8, c:3.8}],
+      2: [{r:1.8, c:10.8}, {r:1.8, c:12.8}, {r:3.8, c:10.8}, {r:3.8, c:12.8}]
     };
 
     let tokens = [];
@@ -647,7 +805,7 @@
     let roomCode = null;
     let roomRef = null;
     let turnTimerInterval = null;
-    let turnTimeLeft = 60; // 1 Minute Extended Join & Turn Timer
+    let turnTimeLeft = 60;
 
     const canvas = document.getElementById('boardCanvas');
     const ctx = canvas.getContext('2d');
@@ -662,7 +820,7 @@
     function startOfflineMode() {
       isOnline = false;
       myPlayerId = 0;
-      document.getElementById('name-red').innerText = document.getElementById('player-name').value || "You (Red)";
+      document.getElementById('name-red').innerText = currentUsername + " (Red)";
       document.getElementById('name-yellow').innerText = "Grandmaster AI";
       document.getElementById('screen-lobby').classList.remove('active');
       document.getElementById('screen-game').classList.add('active');
@@ -670,25 +828,30 @@
     }
 
     function createRoom() {
-      if (!db) { alert("Firebase database connect nahi hua! Offline Mode try karein."); return; }
-      const name = document.getElementById('player-name').value.trim() || "Host";
+      if (currentCoins < 100) {
+        alert("Match fees ke liye kam se kam 100 virtual coins hone chahiye!");
+        return;
+      }
       roomCode = Math.floor(100000 + Math.random() * 900000).toString();
       myPlayerId = 0;
       isOnline = true;
 
+      updateCoinsInDB(currentCoins - 100);
       initGame();
+
       roomRef = db.ref('rooms/' + roomCode);
       roomRef.set({
-        host: name,
+        host: currentUsername,
         guest: null,
         currentTurn: 0,
         diceVal: 1,
         consecutiveSixes: 0,
         tokens: tokens,
         reaction: null,
-        status: 'WAITING'
+        status: 'WAITING',
+        betAmount: 100
       }).then(() => {
-        document.getElementById('name-red').innerText = name + " (Red)";
+        document.getElementById('name-red').innerText = currentUsername + " (Red)";
         document.getElementById('name-yellow').innerText = "Waiting for Guest (1 Min)...";
         document.getElementById('screen-lobby').classList.remove('active');
         document.getElementById('screen-game').classList.add('active');
@@ -700,14 +863,9 @@
     }
 
     function joinRoom() {
-      if (!db) { alert("Firebase database connect nahi hua!"); return; }
       const codeInput = document.getElementById('room-code-input').value.trim();
-      const name = document.getElementById('player-name').value.trim() || "Guest";
-      
-      if (!codeInput) {
-        alert("Kripya Room Code dalein!");
-        return;
-      }
+      if (!codeInput) { alert("Kripya Room Code dalein!"); return; }
+      if (currentCoins < 100) { alert("Match fees ke liye kam se kam 100 coins hone chahiye!"); return; }
 
       roomCode = codeInput;
       myPlayerId = 2;
@@ -716,29 +874,28 @@
 
       roomRef.once('value').then(snap => {
         const val = snap.val();
-        if (!val) {
-          alert("Room code exist nahi karta! Sahi code dalein.");
-          return;
-        }
+        if (!val) { alert("Room code exist nahi karta!"); return; }
+        if (val.status !== 'WAITING') { alert("Room already full ya completed hai!"); return; }
+
+        updateCoinsInDB(currentCoins - 100);
 
         roomRef.update({
-          guest: name,
+          guest: currentUsername,
           status: 'PLAYING'
         }).then(() => {
           document.getElementById('name-red').innerText = val.host + " (Red)";
-          document.getElementById('name-yellow').innerText = name + " (Yellow)";
+          document.getElementById('name-yellow').innerText = currentUsername + " (Yellow)";
           document.getElementById('screen-lobby').classList.remove('active');
           document.getElementById('screen-game').classList.add('active');
           initGame();
           listenToRoom();
         });
-      }).catch(err => {
-        alert("Join Error: " + err.message);
       });
     }
 
     function listenToRoom() {
       if (!roomRef) return;
+      
       roomRef.on('value', (snap) => {
         const data = snap.val();
         if (!data) return;
@@ -767,6 +924,11 @@
             animateOpponentRoll(data.currentTurn, data.diceVal);
           }
         }
+      });
+
+      roomRef.child('chat').on('child_added', (snap) => {
+        const msg = snap.val();
+        if (msg) renderChatMessage(msg);
       });
     }
 
@@ -1058,7 +1220,7 @@
       sound.capture();
       spawnBurst(capturedPawn.player, c, 28);
       state = 'REWINDING';
-      statusMsg.innerText = "Goti Kat Gayi! Reverse Rewind ho rahi hai...";
+      statusMsg.innerText = "Goti Kat Gayi! Reverse Rewind...";
 
       let revStep = capturedPawn.step;
       const rIv = setInterval(() => {
@@ -1082,9 +1244,16 @@
 
       if (redWon || yellowWon) {
         sound.win();
-        statusMsg.innerText = redWon ? "🏆 SHAANDAR JEET! RED WINNER HAI!" : "🏆 SHAANDAR JEET! YELLOW WINNER HAI!";
+        const winnerName = redWon ? "Red" : "Yellow";
+        statusMsg.innerText = `🏆 SHAANDAR JEET! ${winnerName.toUpperCase()} WINNER HAI! (+180 Coins)`;
         state = 'WIN';
         spawnBurst(redWon ? 0 : 2, { r: 7.5, c: 7.5 }, 80);
+
+        const isWinner = (redWon && myPlayerId === 0) || (yellowWon && myPlayerId === 2);
+        if (isWinner) {
+          updateCoinsInDB(currentCoins + 180);
+        }
+
         if (isOnline) syncStateToFirebase('WIN', { winner: redWon ? 0 : 2 });
         return;
       }
@@ -1092,7 +1261,7 @@
       const getsBonus = (diceVal === 6 || captured || justReachedHome);
       if (getsBonus) {
         sound.bonus();
-        statusMsg.innerText = justReachedHome ? "🎯 Goti Finish Hui! Extra Roll Mila!" : (captured ? "⚔️ Goti Kaati! Extra Roll Mila!" : "🎲 6 Aaya! Extra Roll Mila!");
+        statusMsg.innerText = justReachedHome ? "🎯 Home! Extra Roll!" : (captured ? "⚔️ Goti Kaati! Extra Roll!" : "🎲 6 Aaya! Extra Roll!");
         if (isOnline) syncStateToFirebase('BONUS_ROLL');
         setTimeout(setTurnUI, 750);
       } else {
@@ -1140,19 +1309,18 @@
         });
       }
     }
-        /* Render 3D Stand-up Classic Pawn */
+
+        /* 3D Pawn Geometry */
     function drawClassicPawn(cx, cy, colorMain, colorDark, scale = 1, isJumping = false) {
       ctx.save();
       ctx.translate(cx, cy);
       ctx.scale(scale, scale);
 
-      // 3D Drop Shadow
       ctx.beginPath();
       ctx.ellipse(0, 14, 11 * (isJumping ? 0.7 : 1), 5 * (isJumping ? 0.7 : 1), 0, 0, Math.PI * 2);
       ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
       ctx.fill();
 
-      // Flared Bottom Base Ring
       ctx.beginPath();
       ctx.ellipse(0, 10, 10, 4.5, 0, 0, Math.PI * 2);
       ctx.fillStyle = colorDark;
@@ -1161,7 +1329,6 @@
       ctx.strokeStyle = '#111827';
       ctx.stroke();
 
-      // Tapered Stand-up Body
       ctx.beginPath();
       ctx.moveTo(-6.5, 9);
       ctx.quadraticCurveTo(-3.5, -2, -3.5, -6);
@@ -1174,7 +1341,6 @@
       ctx.strokeStyle = '#111827';
       ctx.stroke();
 
-      // Spherical Crown Head
       ctx.beginPath();
       ctx.arc(0, -9.5, 6.5, 0, Math.PI * 2);
       ctx.fillStyle = colorMain;
@@ -1183,7 +1349,6 @@
       ctx.strokeStyle = '#111827';
       ctx.stroke();
 
-      // Specular 3D Highlight
       ctx.beginPath();
       ctx.arc(-2, -11.5, 2, 0, Math.PI * 2);
       ctx.fillStyle = 'rgba(255, 255, 255, 0.65)';
@@ -1192,17 +1357,13 @@
       ctx.restore();
     }
 
-    /* Draw Board Frame, Tracks & Center Triangles */
     function drawBoardBackground() {
-      const s = 40; // 15x15 Grid -> 600x600 px
+      const s = 40;
+      ctx.fillStyle = '#2563eb'; ctx.fillRect(0, 0, 6*s, 6*s);
+      ctx.fillStyle = '#eab308'; ctx.fillRect(9*s, 0, 6*s, 6*s);
+      ctx.fillStyle = '#e11d48'; ctx.fillRect(0, 9*s, 6*s, 6*s);
+      ctx.fillStyle = '#16a34a'; ctx.fillRect(9*s, 9*s, 6*s, 6*s);
 
-      // 4 Base Quarters
-      ctx.fillStyle = '#2563eb'; ctx.fillRect(0, 0, 6*s, 6*s);       // Top-Left: Blue
-      ctx.fillStyle = '#eab308'; ctx.fillRect(9*s, 0, 6*s, 6*s);     // Top-Right: Yellow (Opponent Base)
-      ctx.fillStyle = '#e11d48'; ctx.fillRect(0, 9*s, 6*s, 6*s);     // Bottom-Left: Red (Your Base)
-      ctx.fillStyle = '#16a34a'; ctx.fillRect(9*s, 9*s, 6*s, 6*s);   // Bottom-Right: Green
-
-      // White Inner Base Circles
       const drawBaseCircle = (cx, cy) => {
         ctx.beginPath();
         ctx.arc(cx, cy, 2.2 * s, 0, Math.PI * 2);
@@ -1212,12 +1373,11 @@
         ctx.strokeStyle = '#1e293b';
         ctx.stroke();
       };
-      drawBaseCircle(3*s, 3*s);       // Blue Circle
-      drawBaseCircle(12*s, 3*s);      // Yellow Circle (Top Right)
-      drawBaseCircle(3*s, 12*s);      // Red Circle (Bottom Left)
-      drawBaseCircle(12*s, 12*s);     // Green Circle
+      drawBaseCircle(3*s, 3*s);
+      drawBaseCircle(12*s, 3*s);
+      drawBaseCircle(3*s, 12*s);
+      drawBaseCircle(12*s, 12*s);
 
-      // Track Grid Cells & Colored Home Tracks
       for (let r = 0; r < 15; r++) {
         for (let c = 0; c < 15; c++) {
           const inBase = (r < 6 && c < 6) || (r < 6 && c > 8) || (r > 8 && c < 6) || (r > 8 && c > 8);
@@ -1226,11 +1386,10 @@
           if (!inBase && !inCenter) {
             ctx.fillStyle = '#ffffff';
 
-            // Colored Tracks & Starting Points
-            if (r === 13 && c === 6) ctx.fillStyle = '#e11d48'; // Red Start Box
-            if (c === 7 && r >= 9 && r <= 13) ctx.fillStyle = '#e11d48'; // Red Home Column
-            if (r === 1 && c === 8) ctx.fillStyle = '#eab308';  // Yellow Start Box
-            if (c === 7 && r >= 1 && r <= 5) ctx.fillStyle = '#eab308';  // Yellow Home Column
+            if (r === 13 && c === 6) ctx.fillStyle = '#e11d48';
+            if (c === 7 && r >= 9 && r <= 13) ctx.fillStyle = '#e11d48';
+            if (r === 1 && c === 8) ctx.fillStyle = '#eab308';
+            if (c === 7 && r >= 1 && r <= 5) ctx.fillStyle = '#eab308';
             if (r === 6 && c === 1) ctx.fillStyle = '#2563eb';
             if (r === 7 && c >= 1 && c <= 5) ctx.fillStyle = '#2563eb';
             if (r === 8 && c === 13) ctx.fillStyle = '#16a34a';
@@ -1241,7 +1400,6 @@
             ctx.lineWidth = 1.2;
             ctx.strokeRect(c*s, r*s, s, s);
 
-            // Safe Diamonds (✦)
             if (SAFE_POINTS.some(i => COMMON_PATH[i].r === r && COMMON_PATH[i].c === c)) {
               let dColor = '#1e293b';
               if (r === 13 && c === 6 || r === 1 && c === 8) dColor = '#ffffff';
@@ -1258,27 +1416,20 @@
         }
       }
 
-      // Center Triangles
       ctx.beginPath(); ctx.moveTo(6*s, 6*s); ctx.lineTo(7.5*s, 7.5*s); ctx.lineTo(6*s, 9*s); ctx.fillStyle = '#2563eb'; ctx.fill();
       ctx.beginPath(); ctx.moveTo(6*s, 6*s); ctx.lineTo(7.5*s, 7.5*s); ctx.lineTo(9*s, 6*s); ctx.fillStyle = '#eab308'; ctx.fill();
       ctx.beginPath(); ctx.moveTo(9*s, 6*s); ctx.lineTo(7.5*s, 7.5*s); ctx.lineTo(9*s, 9*s); ctx.fillStyle = '#16a34a'; ctx.fill();
       ctx.beginPath(); ctx.moveTo(6*s, 9*s); ctx.lineTo(7.5*s, 7.5*s); ctx.lineTo(9*s, 9*s); ctx.fillStyle = '#e11d48'; ctx.fill();
-
-      ctx.strokeStyle = '#1e293b';
-      ctx.lineWidth = 1.5;
-      ctx.strokeRect(6*s, 6*s, 3*s, 3*s);
+      ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 1.5; ctx.strokeRect(6*s, 6*s, 3*s, 3*s);
     }
 
-    /* Main Render Loop */
     function render() {
       animClock += 0.08;
       ctx.clearRect(0, 0, 600, 600);
       const s = 40;
 
-      // 1. Board Background
       drawBoardBackground();
 
-      // 2. Target Footprint Neon Preview
       if (state === 'SELECT' && (!isOnline || currentTurn === myPlayerId)) {
         validMoves.forEach(t => {
           const targetStep = (t.step === -1) ? 0 : t.step + diceVal;
@@ -1293,7 +1444,6 @@
         });
       }
 
-      // 3. Cluster Separation for Overlapping Pawns
       const clusterMap = new Map();
       tokens.forEach(tok => {
         if (tok.step >= 0 && !tok.isDone) {
@@ -1304,7 +1454,6 @@
         }
       });
 
-      // 4. Render 3D Pawns
       tokens.forEach(tok => {
         let x, y;
         let scale = 1;
@@ -1349,18 +1498,10 @@
         drawClassicPawn(x, y, colorMain, colorDark, scale, isJumping);
       });
 
-      // 5. Update Particles
       for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i];
-        p.x += p.vx;
-        p.y += p.vy;
-        p.life -= 0.035;
-
-        if (p.life <= 0) {
-          particles.splice(i, 1);
-          continue;
-        }
-
+        p.x += p.vx; p.y += p.vy; p.life -= 0.035;
+        if (p.life <= 0) { particles.splice(i, 1); continue; }
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
         ctx.fillStyle = p.color;
@@ -1372,7 +1513,6 @@
       requestAnimationFrame(render);
     }
 
-    /* Touch & Click Interaction */
     function handleCanvasTouch(e) {
       if (state !== 'SELECT') return;
       if (isOnline && currentTurn !== myPlayerId) return;
@@ -1389,35 +1529,29 @@
         let x, y;
         if (tok.step === -1) {
           const bp = BASES[tok.player][tok.id];
-          x = (bp.c + 0.5) * s;
-          y = (bp.r + 0.5) * s;
+          x = (bp.c + 0.5) * s; y = (bp.r + 0.5) * s;
         } else {
           const pos = getCoords(tok.player, tok.step);
-          x = (pos.c + 0.5) * s;
-          y = (pos.r + 0.5) * s;
+          x = (pos.c + 0.5) * s; y = (pos.r + 0.5) * s;
         }
 
         if (Math.hypot(clickX - x, clickY - y) <= 34) {
           moveToken(tok);
-          if (isOnline) {
-            syncStateToFirebase('MOVE', { movedToken: tok.id });
-          }
+          if (isOnline) syncStateToFirebase('MOVE', { movedToken: tok.id });
           break;
         }
       }
     }
 
-    // Attach Event Handlers
     diceRed.addEventListener('click', () => handleDiceClick(0));
     diceYellow.addEventListener('click', () => handleDiceClick(2));
     canvas.addEventListener('click', handleCanvasTouch);
     canvas.addEventListener('touchstart', handleCanvasTouch, { passive: true });
 
-    // Initialize Game & Start Animation
     initGame();
     render();
   </script>
 </body>
 </html>
 
-    
+  
