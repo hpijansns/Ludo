@@ -6,6 +6,7 @@
   <meta name="theme-color" content="#070a13">
   <title>Ludo Pro - Player Access</title>
   
+  <!-- Firebase Compat Libraries -->
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 
@@ -54,7 +55,7 @@
     .tagline {
       font-size: 0.88rem;
       color: var(--text-muted);
-      margin-bottom: 22px;
+      margin-bottom: 20px;
     }
     .tab-switch {
       display: flex;
@@ -118,6 +119,7 @@
       margin-top: 4px;
     }
     .btn-main:active { transform: scale(0.98); }
+    .btn-main:disabled { opacity: 0.6; cursor: not-allowed; }
     .btn-guest {
       width: 100%;
       background: #334155;
@@ -146,24 +148,22 @@
     <div class="game-logo">LUDO PRO</div>
     <div class="tagline">Multiplayer Realtime & Voice Arena</div>
 
-    <!-- Registered User Badge -->
     <div id="device-registered-badge" class="account-badge">
-      🔒 Registered Device • Enter Password
+      🔒 Registered Device • Login Required
     </div>
 
-    <!-- Tab Switch (Hidden if already signed up) -->
     <div id="tab-container" class="tab-switch">
       <button id="tab-login" class="tab-btn active" onclick="switchTab('login')">Login</button>
       <button id="tab-register" class="tab-btn" onclick="switchTab('register')">Sign Up</button>
     </div>
 
-    <form id="auth-form" onsubmit="handleAuth(event)">
-      <input type="text" id="username" class="input-field" placeholder="Username" required autocomplete="username">
-      <input type="password" id="password" class="input-field" placeholder="Password" required autocomplete="current-password">
-      <button type="submit" id="submit-btn" class="btn-main">LOGIN TO PLAY</button>
-    </form>
+    <div>
+      <input type="text" id="username" class="input-field" placeholder="Username" autocomplete="username">
+      <input type="password" id="password" class="input-field" placeholder="Password" autocomplete="current-password">
+      <button type="button" id="submit-btn" class="btn-main" onclick="executeAuthAction()">LOGIN TO PLAY</button>
+    </div>
 
-    <button class="btn-guest" onclick="loginAsGuest()">🎮 Play As Guest (Instant 1,000 Coins)</button>
+    <button type="button" class="btn-guest" onclick="loginAsGuest()">🎮 Play As Guest (Instant 1,000 Coins)</button>
 
     <div>
       <a href="admin.html" class="admin-link">⚙️ Admin Panel</a>
@@ -181,18 +181,21 @@
       appId: "1:256500867340:web:f31ce7983d4236f8df2929"
     };
 
-    if (!firebase.apps.length) {
-      firebase.initializeApp(firebaseConfig);
+    let db = null;
+    try {
+      if (!firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+      }
+      db = firebase.database();
+    } catch(err) {
+      console.error("Firebase init failed:", err);
     }
-    const db = firebase.database();
 
     let currentMode = 'login';
 
-    // Check if device already has a registered user
     window.addEventListener('DOMContentLoaded', () => {
       const existingAccount = localStorage.getItem('ludo_registered_user');
       if (existingAccount) {
-        // Lock to login only
         document.getElementById('tab-container').style.display = 'none';
         document.getElementById('device-registered-badge').style.display = 'inline-block';
         document.getElementById('username').value = existingAccount;
@@ -208,53 +211,76 @@
       document.getElementById('submit-btn').innerText = (mode === 'login') ? 'LOGIN TO PLAY' : 'CREATE ACCOUNT (1,000 FREE COINS)';
     }
 
-    async function handleAuth(e) {
-      e.preventDefault();
+    async function executeAuthAction() {
+      const btn = document.getElementById('submit-btn');
       const u = document.getElementById('username').value.trim().toLowerCase();
       const p = document.getElementById('password').value.trim();
 
       if (!u || !p) {
-        alert("Please enter both username and password!");
+        alert("Kripya Username aur Password dono dalein!");
         return;
       }
 
-      const userRef = db.ref('users/' + u);
+      if (!db) {
+        alert("Firebase connect nahi hua! Make sure page live server/HTTPS par chal raha hai.");
+        return;
+      }
 
-      if (currentMode === 'register') {
-        const snap = await userRef.once('value');
-        if (snap.exists()) {
-          alert('Username already taken! Please choose another one.');
-          return;
+      btn.disabled = true;
+      const originalText = btn.innerText;
+      btn.innerText = "Processing...";
+
+      try {
+        const userRef = db.ref('users/' + u);
+
+        if (currentMode === 'register') {
+          const snap = await userRef.once('value');
+          if (snap.exists()) {
+            alert('Yeh Username pehle se registered hai! Doosra username chunein.');
+            btn.disabled = false;
+            btn.innerText = originalText;
+            return;
+          }
+
+          await userRef.set({
+            username: u,
+            password: p,
+            coins: 1000,
+            wins: 0,
+            gamesPlayed: 0,
+            registeredAt: Date.now()
+          });
+
+          localStorage.setItem('ludo_registered_user', u);
+          localStorage.setItem('ludo_user', JSON.stringify({ username: u, coins: 1000 }));
+          window.location.href = 'game.html';
+        } else {
+          const snap = await userRef.once('value');
+          const user = snap.val();
+
+          if (!user) {
+            alert('Account nahi mila! Pehle Sign Up karein.');
+            btn.disabled = false;
+            btn.innerText = originalText;
+            return;
+          }
+
+          if (user.password !== p) {
+            alert('Galat Password! Sahi password dalein.');
+            btn.disabled = false;
+            btn.innerText = originalText;
+            return;
+          }
+
+          localStorage.setItem('ludo_registered_user', user.username);
+          localStorage.setItem('ludo_user', JSON.stringify({ username: user.username, coins: user.coins || 1000 }));
+          window.location.href = 'game.html';
         }
-
-        // Save new user in Firebase
-        await userRef.set({
-          username: u,
-          password: p,
-          coins: 1000,
-          wins: 0,
-          gamesPlayed: 0,
-          registeredAt: Date.now()
-        });
-
-        // Permanent lock: is device par sign up lock ho gaya
-        localStorage.setItem('ludo_registered_user', u);
-        localStorage.setItem('ludo_user', JSON.stringify({ username: u, coins: 1000 }));
-        window.location.href = 'game.html';
-      } else {
-        // Login flow
-        const snap = await userRef.once('value');
-        const user = snap.val();
-
-        if (!user || user.password !== p) {
-          alert('Invalid Username or Password!');
-          return;
-        }
-
-        // Device ko yaad rakhega
-        localStorage.setItem('ludo_registered_user', user.username);
-        localStorage.setItem('ludo_user', JSON.stringify({ username: user.username, coins: user.coins || 1000 }));
-        window.location.href = 'game.html';
+      } catch (error) {
+        console.error("Auth Error:", error);
+        alert("Database Error: " + error.message + "\n\n(Firebase Console me Realtime Database Rules me .read aur .write ko true karein)");
+        btn.disabled = false;
+        btn.innerText = originalText;
       }
     }
 
