@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ludo Pro - Admin Control Center</title>
+  
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
+  <style>
+    :root {
+      --bg: #0b0f19;
+      --card: #161f30;
+      --card-border: #23314d;
+      --accent: #2563eb;
+      --danger: #ef4444;
+      --gold: #fbbf24;
+      --green: #22c55e;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 1100px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 22px;
+      margin-bottom: 24px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    }
+
+    .login-box {
+      max-width: 380px;
+      margin: 80px auto;
+      text-align: center;
+    }
+
+    .title-gradient {
+      background: linear-gradient(135deg, var(--gold), #ef4444);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      font-size: 1.8rem;
+      font-weight: 900;
+      margin-bottom: 6px;
+    }
+
+    .input-field {
+      width: 100%;
+      background: #0f172a;
+      border: 1px solid var(--card-border);
+      padding: 12px;
+      border-radius: 8px;
+      color: #fff;
+      font-size: 0.95rem;
+      margin-bottom: 12px;
+      outline: none;
+    }
+    .input-field:focus { border-color: var(--accent); }
+
+    .btn {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .btn:active { opacity: 0.8; }
+    .btn-danger { background: var(--danger); }
+    .btn-green { background: var(--green); }
+    .btn-gold { background: #d97706; }
+
+    .header-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      border-bottom: 1px solid var(--card-border);
+      padding-bottom: 16px;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .stat-card {
+      background: #0f172a;
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 16px;
+      text-align: center;
+    }
+    .stat-val {
+      font-size: 1.8rem;
+      font-weight: 900;
+      color: var(--gold);
+      margin-top: 4px;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      margin-top: 14px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+
+    th, td {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--card-border);
+      font-size: 0.9rem;
+    }
+
+    th {
+      background: #0f172a;
+      color: var(--text-muted);
+      font-weight: 800;
+      text-transform: uppercase;
+      font-size: 0.78rem;
+      letter-spacing: 0.5px;
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 800;
+    }
+    .badge-waiting { background: rgba(251, 191, 36, 0.2); color: var(--gold); }
+    .badge-playing { background: rgba(34, 197, 94, 0.2); color: var(--green); }
+
+    .room-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #0f172a;
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <!-- 1. Admin Login Gate -->
+    <div id="section-login" class="card login-box">
+      <div class="title-gradient">ADMIN ACCESS</div>
+      <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom:20px;">Ludo Master Pro Management Console</p>
+
+      <form onsubmit="handleAdminLogin(event)">
+        <input type="text" id="admin-user" class="input-field" placeholder="Admin Username" required autocomplete="username">
+        <input type="password" id="admin-pass" class="input-field" placeholder="Admin Password" required autocomplete="current-password">
+        <button type="submit" class="btn" style="width:100%; padding:12px; margin-top:6px;">AUTHENTICATE</button>
+      </form>
+    </div>
+
+    <!-- 2. Dashboard Interface -->
+    <div id="section-dashboard" style="display:none;">
+      <div class="header-bar">
+        <div>
+          <h1 class="title-gradient">CONTROL DASHBOARD</h1>
+          <p style="color:var(--text-muted); font-size:0.85rem;">Connected to: ludo-739f9-default-rtdb</p>
+        </div>
+        <button class="btn btn-danger" onclick="adminLogout()">Exit Session</button>
+      </div>
+
+      <!-- Quick Metrics -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div style="font-size:0.8rem; color:var(--text-muted); font-weight:700;">ACTIVE ROOMS</div>
+          <div class="stat-val" id="stat-active-rooms">0</div>
+        </div>
+        <div class="stat-card">
+          <div style="font-size:0.8rem; color:var(--text-muted); font-weight:700;">REGISTERED PLAYERS</div>
+          <div class="stat-val" id="stat-total-players">0</div>
+        </div>
+        <div class="stat-card">
+          <div style="font-size:0.8rem; color:var(--text-muted); font-weight:700;">TOTAL VIRTUAL COINS</div>
+          <div class="stat-val" id="stat-total-coins">0</div>
+        </div>
+      </div>
+
+      <!-- Live Match Rooms -->
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+          <h3>🎮 Live Active Match Rooms</h3>
+          <button class="btn btn-gold" style="font-size:0.8rem;" onclick="refreshData()">Sync Data</button>
+        </div>
+        <div id="active-rooms-container">Loading active matches...</div>
+      </div>
+
+      <!-- Registered Players & Economy Manager -->
+      <div class="card">
+        <h3>👥 Registered Players & Virtual Wallets</h3>
+        <p style="color:var(--text-muted); font-size:0.82rem; margin-top:4px;">Manage player points, balance adjustments and accounts</p>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Username</th>
+                <th>Virtual Coins</th>
+                <th>Matches Won</th>
+                <th>Registered Date</th>
+                <th>Manage Balance</th>
+                <th>Account</th>
+              </tr>
+            </thead>
+            <tbody id="player-rows">
+              <tr><td colspan="6" style="text-align:center; color:var(--text-muted);">Loading database...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyDnfIFlNgFAaY5k4DcpeanXnTYan_VaTg0",
+      authDomain: "ludo-739f9.firebaseapp.com",
+      databaseURL: "https://ludo-739f9-default-rtdb.firebaseio.com",
+      projectId: "ludo-739f9",
+      storageBucket: "ludo-739f9.firebasestorage.app",
+      messagingSenderId: "256500867340",
+      appId: "1:256500867340:web:f31ce7983d4236f8df2929"
+    };
+
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // Check existing authenticated session
+    window.addEventListener('DOMContentLoaded', () => {
+      if (sessionStorage.getItem('ludo_admin_auth') === 'true') {
+        mountDashboard();
+      }
+    });
+
+    function handleAdminLogin(e) {
+      e.preventDefault();
+      const u = document.getElementById('admin-user').value.trim();
+      const p = document.getElementById('admin-pass').value.trim();
+
+      if (u === 'mohit9' && p === 'pooja 2005') {
+        sessionStorage.setItem('ludo_admin_auth', 'true');
+        mountDashboard();
+      } else {
+        alert('Invalid Admin Credentials!');
+      }
+    }
+
+    function adminLogout() {
+      sessionStorage.removeItem('ludo_admin_auth');
+      document.getElementById('section-dashboard').style.display = 'none';
+      document.getElementById('section-login').style.display = 'block';
+    }
+
+    function mountDashboard() {
+      document.getElementById('section-login').style.display = 'none';
+      document.getElementById('section-dashboard').style.display = 'block';
+      bindRealtimeStreams();
+    }
+
+    function bindRealtimeStreams() {
+      // 1. Stream Active Rooms
+      db.ref('rooms').on('value', (snap) => {
+        const rooms = snap.val();
+        const container = document.getElementById('active-rooms-container');
+        container.innerHTML = '';
+
+        if (!rooms) {
+          container.innerHTML = '<div style="color:var(--text-muted); font-size:0.9rem;">No active matches found.</div>';
+          document.getElementById('stat-active-rooms').innerText = '0';
+          return;
+        }
+
+        const roomKeys = Object.keys(rooms);
+        document.getElementById('stat-active-rooms').innerText = roomKeys.length;
+
+        roomKeys.forEach(code => {
+          const r = rooms[code];
+          const div = document.createElement('div');
+          div.className = 'room-row';
+          div.innerHTML = `
+            <div>
+              <strong style="color:var(--gold); font-size:1rem;">Room #${code}</strong>
+              <div style="font-size:0.85rem; color:var(--text-muted); margin-top:2px;">
+                Host: <strong style="color:#fff;">${r.host || 'N/A'}</strong> | Guest: <strong style="color:#fff;">${r.guest || 'Waiting...'}</strong>
+              </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:10px;">
+              <span class="status-badge ${r.status === 'PLAYING' ? 'badge-playing' : 'badge-waiting'}">${r.status || 'ACTIVE'}</span>
+              <button class="btn btn-danger" style="font-size:0.8rem;" onclick="terminateRoom('${code}')">Kill Room</button>
+            </div>
+          `;
+          container.appendChild(div);
+        });
+      });
+
+      // 2. Stream Users & Wallets
+      db.ref('users').on('value', (snap) => {
+        const users = snap.val();
+        const tbody = document.getElementById('player-rows');
+        tbody.innerHTML = '';
+
+        if (!users) {
+          tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">No users registered yet.</td></tr>';
+          document.getElementById('stat-total-players').innerText = '0';
+          document.getElementById('stat-total-coins').innerText = '0';
+          return;
+        }
+
+        const userKeys = Object.keys(users);
+        document.getElementById('stat-total-players').innerText = userKeys.length;
+
+        let totalCoins = 0;
+        userKeys.forEach(username => {
+          const u = users[username];
+          const coins = u.coins || 0;
+          totalCoins += coins;
+          const regDate = u.registeredAt ? new Date(u.registeredAt).toLocaleDateString() : 'N/A';
+
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td><strong>${username}</strong></td>
+            <td style="color:var(--gold); font-weight:800;">🟡 ${coins.toLocaleString()}</td>
+            <td>${u.wins || 0}</td>
+            <td style="color:var(--text-muted); font-size:0.82rem;">${regDate}</td>
+            <td>
+              <button class="btn btn-green" style="padding:4px 8px; font-size:0.75rem;" onclick="adjustCoins('${username}', 500)">+500</button>
+              <button class="btn btn-danger" style="padding:4px 8px; font-size:0.75rem; margin-left:4px;" onclick="adjustCoins('${username}', -500)">-500</button>
+              <button class="btn btn-gold" style="padding:4px 8px; font-size:0.75rem; margin-left:4px;" onclick="setCustomCoins('${username}')">Set</button>
+            </td>
+            <td>
+              <button class="btn btn-danger" style="padding:4px 8px; font-size:0.75rem;" onclick="deletePlayer('${username}')">Delete</button>
+            </td>
+          `;
+          tbody.appendChild(row);
+        });
+
+        document.getElementById('stat-total-coins').innerText = totalCoins.toLocaleString();
+      });
+    }
+
+    function terminateRoom(code) {
+      if (confirm(`Room #${code} ko band karna chahte hain?`)) {
+        db.ref('rooms/' + code).remove();
+      }
+    }
+
+    function adjustCoins(username, delta) {
+      db.ref('users/' + username + '/coins').transaction((current) => {
+        return Math.max(0, (current || 0) + delta);
+      });
+    }
+
+    function setCustomCoins(username) {
+      const val = prompt(`Player ${username} ke liye naye coins dalein:`, "1000");
+      if (val !== null && !isNaN(val)) {
+        db.ref('users/' + username).update({ coins: parseInt(val, 10) });
+      }
+    }
+
+    function deletePlayer(username) {
+      if (confirm(`Kya aap player "${username}" ka account delete karna chahte hain?`)) {
+        db.ref('users/' + username).remove();
+      }
+    }
+
+    function refreshData() {
+      bindRealtimeStreams();
+    }
+  </script>
+</body>
+</html>
