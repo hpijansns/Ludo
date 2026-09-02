@@ -69,6 +69,19 @@
       border: 1px solid rgba(255, 255, 255, 0.08);
     }
 
+    .room-badge {
+      display: none;
+      background: rgba(37, 99, 235, 0.25);
+      border: 1px solid #3b82f6;
+      color: #93c5fd;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 0.78rem;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .room-badge:active { transform: scale(0.95); }
+
     .coin-badge {
       background: rgba(251, 191, 36, 0.15);
       border: 1px solid rgba(251, 191, 36, 0.4);
@@ -103,6 +116,16 @@
       text-align: center;
       box-shadow: 0 10px 30px rgba(0,0,0,0.6);
       margin-top: 15px;
+    }
+
+    .rejoin-card {
+      display: none;
+      background: rgba(34, 197, 94, 0.15);
+      border: 1.5px solid #22c55e;
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 6px;
+      text-align: center;
     }
 
     .input-field {
@@ -348,7 +371,6 @@
     .dice-cube[data-val="5"] .dp1, .dice-cube[data-val="5"] .dp3, .dice-cube[data-val="5"] .dp5, .dice-cube[data-val="5"] .dp7, .dice-cube[data-val="5"] .dp9 { display: block; }
     .dice-cube[data-val="6"] .dp1, .dice-cube[data-val="6"] .dp3, .dice-cube[data-val="6"] .dp4, .dice-cube[data-val="6"] .dp6, .dice-cube[data-val="6"] .dp7, .dice-cube[data-val="6"] .dp9 { display: block; }
 
-    /* Keyboard Chat Drawer */
     .chat-drawer {
       position: fixed;
       bottom: -100%;
@@ -414,7 +436,10 @@
 
   <div id="game-shell">
     <div class="top-bar">
-      <div style="font-weight: 800; font-size: 0.9rem;" id="player-profile-name">Player</div>
+      <div style="display:flex; align-items:center; gap:6px;">
+        <div style="font-weight: 800; font-size: 0.9rem;" id="player-profile-name">Player</div>
+        <div id="top-room-badge" class="room-badge" onclick="copyRoomCode()">ROOM: <span id="top-room-code">------</span> 📋</div>
+      </div>
       <div class="coin-badge">🟡 <span id="player-coin-count">1000</span> Coins</div>
       <button class="ctrl-btn" style="background:#ef4444;" onclick="logout()">Logout</button>
     </div>
@@ -424,6 +449,12 @@
       <div class="lobby-box">
         <h2 style="color:var(--gold);">MATCHMAKING</h2>
         <p style="font-size:0.8rem; color:var(--text-muted);">Fee: 100 Virtual Coins / Match</p>
+
+        <!-- Dynamic Rejoin Box on Refresh -->
+        <div id="rejoin-prompt" class="rejoin-card">
+          <div style="font-size:0.85rem; color:#4ade80; font-weight:800; margin-bottom:6px;">⚡ Active Match Found!</div>
+          <button class="btn-main" style="background:#16a34a; padding:9px;" onclick="resumeSavedMatch()">Rejoin Match Now</button>
+        </div>
 
         <button class="btn-main btn-gold" onclick="createRoom()">👑 CREATE ROOM</button>
         
@@ -504,7 +535,7 @@
     </div>
   </div>
 
-  <!-- In-Game Chat Drawer -->
+  <!-- Keyboard Chat Drawer -->
   <div id="chat-drawer" class="chat-drawer">
     <div class="chat-header">
       <span>ROOM CHAT</span>
@@ -516,7 +547,7 @@
       <button class="btn-main" style="width:80px; padding:8px;" onclick="sendChatMessage()">Send</button>
     </div>
   </div>
-  <script>
+    <script>
     const firebaseConfig = {
       apiKey: "AIzaSyDnfIFlNgFAaY5k4DcpeanXnTYan_VaTg0",
       authDomain: "ludo-739f9.firebaseapp.com",
@@ -530,18 +561,20 @@
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // Session Management
+    // Session Management & Persistence
     const localUserData = JSON.parse(localStorage.getItem('ludo_user') || 'null');
     if (!localUserData) {
       window.location.href = 'index.html';
     }
     const currentUsername = localUserData.username;
+    const safeUsername = localUserData.safeUsername || currentUsername.replace(/[.#$\[\]@]/g, '_');
     let currentCoins = localUserData.coins || 1000;
 
     document.getElementById('player-profile-name').innerText = currentUsername;
     document.getElementById('player-coin-count').innerText = currentCoins;
 
     function logout() {
+      sessionStorage.removeItem('ludo_active_match');
       localStorage.removeItem('ludo_user');
       window.location.href = 'index.html';
     }
@@ -552,7 +585,7 @@
       localUserData.coins = currentCoins;
       localStorage.setItem('ludo_user', JSON.stringify(localUserData));
       if (!localUserData.isGuest) {
-        db.ref('users/' + currentUsername).update({ coins: currentCoins });
+        db.ref('users/' + safeUsername).update({ coins: currentCoins });
       }
     }
 
@@ -642,7 +675,7 @@
     }
     const sound = new LoudAudioMaster();
 
-    /* WebRTC Voice & Speaker Control */
+    /* WebRTC Voice & Remote Speaker Control */
     let localStream = null;
     let peerConnection = null;
     let remoteAudioElement = null;
@@ -763,7 +796,7 @@
       box.appendChild(div);
       box.scrollTop = box.scrollHeight;
     }
-    /* Board Geometry */
+          /* Board Coordinate Geometry */
     const COMMON_PATH = [
       {r:6, c:1}, {r:6, c:2}, {r:6, c:3}, {r:6, c:4}, {r:6, c:5},
       {r:5, c:6}, {r:4, c:6}, {r:3, c:6}, {r:2, c:6}, {r:1, c:6}, {r:0, c:6},
@@ -806,6 +839,7 @@
     let roomRef = null;
     let turnTimerInterval = null;
     let turnTimeLeft = 60;
+    let isMovingOptimistic = false;
 
     const canvas = document.getElementById('boardCanvas');
     const ctx = canvas.getContext('2d');
@@ -816,10 +850,67 @@
     const deckYellow = document.getElementById('deck-yellow');
     const timerRed = document.getElementById('timer-red');
     const timerYellow = document.getElementById('timer-yellow');
+    const topRoomBadge = document.getElementById('top-room-badge');
+    const topRoomCode = document.getElementById('top-room-code');
+
+    // Check existing match on refresh
+    window.addEventListener('DOMContentLoaded', () => {
+      const activeMatch = JSON.parse(sessionStorage.getItem('ludo_active_match') || 'null');
+      if (activeMatch && activeMatch.roomCode) {
+        document.getElementById('rejoin-prompt').style.display = 'block';
+      }
+    });
+
+    function showPermanentRoomBadge(code) {
+      topRoomCode.innerText = code;
+      topRoomBadge.style.display = 'inline-block';
+    }
+
+    function copyRoomCode() {
+      if (!roomCode) return;
+      navigator.clipboard.writeText(roomCode);
+      alert("Room Code Copied: " + roomCode);
+    }
+
+    function resumeSavedMatch() {
+      const activeMatch = JSON.parse(sessionStorage.getItem('ludo_active_match') || 'null');
+      if (!activeMatch) return;
+
+      roomCode = activeMatch.roomCode;
+      myPlayerId = activeMatch.myPlayerId;
+      isOnline = true;
+      roomRef = db.ref('rooms/' + roomCode);
+
+      roomRef.once('value').then(snap => {
+        const val = snap.val();
+        if (!val || val.status === 'FINISHED') {
+          alert('Saved room already completed ya expired hai.');
+          sessionStorage.removeItem('ludo_active_match');
+          document.getElementById('rejoin-prompt').style.display = 'none';
+          return;
+        }
+
+        document.getElementById('name-red').innerText = (myPlayerId === 0 ? currentUsername : (val.host || 'Red')) + " (Red)";
+        document.getElementById('name-yellow').innerText = (myPlayerId === 2 ? currentUsername : (val.guest || 'Yellow')) + " (Yellow)";
+        showPermanentRoomBadge(roomCode);
+
+        document.getElementById('screen-lobby').classList.remove('active');
+        document.getElementById('screen-game').classList.add('active');
+
+        tokens = val.tokens || tokens;
+        currentTurn = val.currentTurn || 0;
+        diceVal = val.diceVal || 1;
+        updateScores();
+        setTurnUI();
+        listenToRoom();
+      });
+    }
 
     function startOfflineMode() {
       isOnline = false;
       myPlayerId = 0;
+      topRoomBadge.style.display = 'none';
+      sessionStorage.removeItem('ludo_active_match');
       document.getElementById('name-red').innerText = currentUsername + " (Red)";
       document.getElementById('name-yellow').innerText = "Grandmaster AI";
       document.getElementById('screen-lobby').classList.remove('active');
@@ -839,6 +930,9 @@
       updateCoinsInDB(currentCoins - 100);
       initGame();
 
+      sessionStorage.setItem('ludo_active_match', JSON.stringify({ roomCode: roomCode, myPlayerId: 0 }));
+      showPermanentRoomBadge(roomCode);
+
       roomRef = db.ref('rooms/' + roomCode);
       roomRef.set({
         host: currentUsername,
@@ -852,10 +946,10 @@
         betAmount: 100
       }).then(() => {
         document.getElementById('name-red').innerText = currentUsername + " (Red)";
-        document.getElementById('name-yellow').innerText = "Waiting for Guest (1 Min)...";
+        document.getElementById('name-yellow').innerText = "Waiting for Guest...";
         document.getElementById('screen-lobby').classList.remove('active');
         document.getElementById('screen-game').classList.add('active');
-        statusMsg.innerText = `Room: ${roomCode} • Share karein!`;
+        statusMsg.innerText = "Room created! Waiting for opponent to join...";
         listenToRoom();
       }).catch(err => {
         alert("Room create error: " + err.message);
@@ -875,9 +969,14 @@
       roomRef.once('value').then(snap => {
         const val = snap.val();
         if (!val) { alert("Room code exist nahi karta!"); return; }
-        if (val.status !== 'WAITING') { alert("Room already full ya completed hai!"); return; }
+        if (val.status !== 'WAITING' && val.guest !== currentUsername) {
+          alert("Room full ya expired ho chuka hai!");
+          return;
+        }
 
         updateCoinsInDB(currentCoins - 100);
+        sessionStorage.setItem('ludo_active_match', JSON.stringify({ roomCode: roomCode, myPlayerId: 2 }));
+        showPermanentRoomBadge(roomCode);
 
         roomRef.update({
           guest: currentUsername,
@@ -909,7 +1008,7 @@
           showFloatingReaction(data.reaction.emoji, data.reaction.player);
         }
 
-        if (isOnline && data.tokens) {
+        if (isOnline && data.tokens && !isMovingOptimistic) {
           tokens = data.tokens;
           diceVal = data.diceVal || 1;
           consecutiveSixes = data.consecutiveSixes || 0;
@@ -970,9 +1069,8 @@
       el.style.top = (player === 0 ? '70%' : '15%');
       document.getElementById('game-shell').appendChild(el);
       setTimeout(() => el.remove(), 1800);
-    }
-
-    function initGame() {
+            }
+          function initGame() {
       tokens = [
         { player: 0, id: 0, step: -1, isDone: false },
         { player: 0, id: 1, step: -1, isDone: false },
@@ -986,6 +1084,7 @@
       particles = [];
       currentTurn = 0;
       consecutiveSixes = 0;
+      isMovingOptimistic = false;
       updateScores();
       setTurnUI();
     }
@@ -1001,7 +1100,7 @@
 
         if (turnTimeLeft <= 0) {
           clearInterval(turnTimerInterval);
-          statusMsg.innerText = "Time Out! Turn Pass ho gaya.";
+          statusMsg.innerText = "Time Out! Turn pass ho gaya.";
           if (!isOnline || currentTurn === myPlayerId) {
             switchTurn();
           }
@@ -1097,6 +1196,7 @@
           return;
         }
 
+        // Glitch Fix: Agar sirf 1 move valid hai toh bina click ka wait kiye auto-move karo
         if (validMoves.length === 1) {
           moveToken(validMoves[0]);
         } else {
@@ -1104,9 +1204,8 @@
           statusMsg.innerText = `${diceVal} Aaya! Chalne ke liye goti chunein.`;
         }
       }, 360);
-    }
-
-    function evaluateAIMove(token, roll) {
+        }
+          function evaluateAIMove(token, roll) {
       let score = 0;
       const curStep = token.step;
       const targetStep = (curStep === -1) ? 0 : curStep + roll;
@@ -1171,6 +1270,7 @@
 
     function moveToken(tok) {
       state = 'MOVING';
+      isMovingOptimistic = true; // Lock local state against listener overwrite
       const from = tok.step;
       const to = (from === -1) ? 0 : from + diceVal;
 
@@ -1249,20 +1349,27 @@
         state = 'WIN';
         spawnBurst(redWon ? 0 : 2, { r: 7.5, c: 7.5 }, 80);
 
+        sessionStorage.removeItem('ludo_active_match');
         const isWinner = (redWon && myPlayerId === 0) || (yellowWon && myPlayerId === 2);
         if (isWinner) {
           updateCoinsInDB(currentCoins + 180);
         }
 
-        if (isOnline) syncStateToFirebase('WIN', { winner: redWon ? 0 : 2 });
+        if (isOnline) {
+          roomRef.update({ status: 'FINISHED' });
+          syncStateToFirebase('WIN', { winner: redWon ? 0 : 2 });
+        }
+        isMovingOptimistic = false;
         return;
       }
 
       const getsBonus = (diceVal === 6 || captured || justReachedHome);
+      if (isOnline) syncStateToFirebase('MOVE_DONE', { movedToken: tok.id });
+      isMovingOptimistic = false;
+
       if (getsBonus) {
         sound.bonus();
         statusMsg.innerText = justReachedHome ? "🎯 Home! Extra Roll!" : (captured ? "⚔️ Goti Kaati! Extra Roll!" : "🎲 6 Aaya! Extra Roll!");
-        if (isOnline) syncStateToFirebase('BONUS_ROLL');
         setTimeout(setTurnUI, 750);
       } else {
         switchTurn();
@@ -1309,8 +1416,7 @@
         });
       }
     }
-
-        /* 3D Pawn Geometry */
+          /* 3D Pawn Geometry */
     function drawClassicPawn(cx, cy, colorMain, colorDark, scale = 1, isJumping = false) {
       ctx.save();
       ctx.translate(cx, cy);
@@ -1513,6 +1619,7 @@
       requestAnimationFrame(render);
     }
 
+    // High-Precision Hit Detection for Pawn Touch
     function handleCanvasTouch(e) {
       if (state !== 'SELECT') return;
       if (isOnline && currentTurn !== myPlayerId) return;
@@ -1535,9 +1642,9 @@
           x = (pos.c + 0.5) * s; y = (pos.r + 0.5) * s;
         }
 
-        if (Math.hypot(clickX - x, clickY - y) <= 34) {
+        // Expanded click radius (42px) for accurate mobile finger touches
+        if (Math.hypot(clickX - x, clickY - y) <= 42) {
           moveToken(tok);
-          if (isOnline) syncStateToFirebase('MOVE', { movedToken: tok.id });
           break;
         }
       }
@@ -1553,5 +1660,3 @@
   </script>
 </body>
 </html>
-
-  
