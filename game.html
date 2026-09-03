@@ -10,7 +10,6 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
   
-  <!-- External CSS -->
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -34,18 +33,18 @@
         <!-- Rejoin Prompt -->
         <div id="rejoin-prompt" class="rejoin-card">
           <div style="font-size:0.85rem; color:#4ade80; font-weight:800; margin-bottom:6px;">⚡ Active Match Found!</div>
-          <button class="btn-main" style="background:#16a34a; padding:9px;" onclick="resumeSavedMatch()">Rejoin Match Now</button>
+          <button type="button" class="btn-main" style="background:#16a34a; padding:9px;" onclick="resumeSavedMatch()">Rejoin Match Now</button>
         </div>
 
-        <button class="btn-main btn-gold" onclick="createRoom()">👑 CREATE ROOM</button>
+        <button type="button" class="btn-main btn-gold" id="btn-create-room" onclick="createRoom()">👑 CREATE ROOM</button>
         
         <div style="display:flex; gap:6px;">
           <input type="text" id="room-code-input" class="input-field" placeholder="Room Code">
-          <button class="btn-main" style="width:110px;" onclick="joinRoom()">JOIN</button>
+          <button type="button" class="btn-main" style="width:110px;" onclick="joinRoom()">JOIN</button>
         </div>
 
         <div style="border-top:1px solid rgba(255,255,255,0.1); margin:4px 0;"></div>
-        <button class="btn-main" style="background:#334155;" onclick="startOfflineMode()">🤖 PLAY VS COMPUTER</button>
+        <button type="button" class="btn-main" style="background:#334155;" id="btn-play-comp" onclick="startOfflineMode()">🤖 PLAY VS COMPUTER</button>
       </div>
     </div>
 
@@ -99,9 +98,9 @@
           </div>
         </div>
         <div class="ctrl-group">
-          <button id="mic-toggle-btn" class="ctrl-btn" onclick="toggleVoiceChat()">🎙️ Mic Off</button>
-          <button id="speaker-toggle-btn" class="ctrl-btn" onclick="toggleSpeaker()">🔊 On</button>
-          <button class="ctrl-btn" onclick="toggleChatDrawer()">💬 Chat</button>
+          <button type="button" id="mic-toggle-btn" class="ctrl-btn" onclick="toggleVoiceChat()">🎙️ Mic Off</button>
+          <button type="button" id="speaker-toggle-btn" class="ctrl-btn" onclick="toggleSpeaker()">🔊 On</button>
+          <button type="button" class="ctrl-btn" onclick="toggleChatDrawer()">💬 Chat</button>
           <div class="dice-wrap">
             <div id="dice-red" class="dice-cube" data-val="1">
               <div class="pip dp1" style="grid-area:1/1;"></div><div class="pip dp2" style="grid-area:1/2;"></div><div class="pip dp3" style="grid-area:1/3;"></div>
@@ -126,18 +125,339 @@
   <div id="chat-drawer" class="chat-drawer">
     <div class="chat-header">
       <span>ROOM CHAT</span>
-      <button class="ctrl-btn" style="padding:2px 8px;" onclick="toggleChatDrawer()">✕</button>
+      <button type="button" class="ctrl-btn" style="padding:2px 8px;" onclick="toggleChatDrawer()">✕</button>
     </div>
     <div id="chat-messages" class="chat-messages"></div>
     <div class="chat-input-row">
       <input type="text" id="chat-text-input" class="input-field" placeholder="Type message..." maxlength="70" style="margin-bottom:0;" onkeydown="if(event.key==='Enter') sendChatMessage()">
-      <button class="btn-main" style="width:80px; padding:8px;" onclick="sendChatMessage()">Send</button>
+      <button type="button" class="btn-main" style="width:80px; padding:8px;" onclick="sendChatMessage()">Send</button>
     </div>
   </div>
 
-  <!-- Linked JavaScript Modules -->
-  <script src="sound.js"></script>
-  <script src="webrtc.js"></script>
-  <script src="game.js"></script>
-</body>
-</html>
+  <script>
+    /* --- 1. FIREBASE & CORE INIT --- */
+    const firebaseConfig = {
+      apiKey: "AIzaSyDnfIFlNgFAaY5k4DcpeanXnTYan_VaTg0",
+      authDomain: "ludo-739f9.firebaseapp.com",
+      databaseURL: "https://ludo-739f9-default-rtdb.firebaseio.com",
+      projectId: "ludo-739f9",
+      storageBucket: "ludo-739f9.firebasestorage.app",
+      messagingSenderId: "256500867340",
+      appId: "1:256500867340:web:f31ce7983d4236f8df2929"
+    };
+
+    let db = null;
+    try {
+      if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+      db = firebase.database();
+    } catch(e) {
+      console.warn("Firebase offline or direct loading mode:", e);
+    }
+
+    // Safe User Fallback
+    let localUserData = null;
+    try {
+      localUserData = JSON.parse(localStorage.getItem('ludo_user') || 'null');
+    } catch(e) {}
+
+    if (!localUserData) {
+      const guestName = "Guest_" + Math.floor(1000 + Math.random() * 9000);
+      localUserData = { username: guestName, safeUsername: guestName, coins: 1000, isGuest: true };
+      localStorage.setItem('ludo_user', JSON.stringify(localUserData));
+    }
+
+    const currentUsername = localUserData.username || "Player";
+    const safeUsername = localUserData.safeUsername || currentUsername.replace(/[.#$\[\]@]/g, '_');
+    let currentCoins = localUserData.coins !== undefined ? localUserData.coins : 1000;
+
+    document.getElementById('player-profile-name').innerText = currentUsername;
+    document.getElementById('player-coin-count').innerText = currentCoins;
+
+    function logout() {
+      sessionStorage.removeItem('ludo_active_match');
+      localStorage.removeItem('ludo_user');
+      window.location.href = 'index.html';
+    }
+
+    function updateCoinsInDB(newAmount) {
+      currentCoins = newAmount;
+      document.getElementById('player-coin-count').innerText = currentCoins;
+      localUserData.coins = currentCoins;
+      localStorage.setItem('ludo_user', JSON.stringify(localUserData));
+      if (db && !localUserData.isGuest) {
+        db.ref('users/' + safeUsername).update({ coins: currentCoins });
+      }
+    }
+
+    /* --- 2. AUDIO SYNTHESIZER --- */
+    class LoudAudioMaster {
+      constructor() { this.ctx = null; this.compressor = null; }
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          if (AudioContext) {
+            this.ctx = new AudioContext();
+            this.compressor = this.ctx.createDynamicsCompressor();
+            this.compressor.threshold.setValueAtTime(-14, this.ctx.currentTime);
+            this.compressor.knee.setValueAtTime(28, this.ctx.currentTime);
+            this.compressor.ratio.setValueAtTime(14, this.ctx.currentTime);
+            this.compressor.attack.setValueAtTime(0.002, this.ctx.currentTime);
+            this.compressor.release.setValueAtTime(0.18, this.ctx.currentTime);
+            const gain = this.ctx.createGain();
+            gain.gain.setValueAtTime(2.2, this.ctx.currentTime);
+            this.compressor.connect(gain);
+            gain.connect(this.ctx.destination);
+          }
+        }
+        if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+      }
+      playTone(freq, type, duration, vol = 0.55, bass = false) {
+        try {
+          this.init();
+          if (!this.ctx) return;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = type;
+          osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+          gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+          osc.connect(gain);
+          gain.connect(this.compressor);
+          osc.start();
+          osc.stop(this.ctx.currentTime + duration);
+
+          if (bass) {
+            const sub = this.ctx.createOscillator();
+            const subGain = this.ctx.createGain();
+            sub.type = 'sine';
+            sub.frequency.setValueAtTime(80, this.ctx.currentTime);
+            subGain.gain.setValueAtTime(vol * 0.95, this.ctx.currentTime);
+            subGain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+            sub.connect(subGain);
+            subGain.connect(this.compressor);
+            sub.start();
+            sub.stop(this.ctx.currentTime + duration);
+          }
+        } catch(e) {}
+      }
+      roll() {
+        this.init();
+        let c = 0;
+        const iv = setInterval(() => {
+          this.playTone(210 + Math.random() * 260, 'square', 0.045, 0.45);
+          c++;
+          if (c > 5) clearInterval(iv);
+        }, 38);
+      }
+      step(idx) { this.playTone(430 + (idx % 14) * 28, 'sine', 0.065, 0.7); }
+      capture() {
+        this.playTone(260, 'sawtooth', 0.14, 0.9, true);
+        setTimeout(() => this.playTone(105, 'sawtooth', 0.32, 1.0, true), 60);
+      }
+      rewind(step) { this.playTone(680 + (step % 8) * 45, 'triangle', 0.035, 0.45); }
+      bonus() {
+        this.playTone(740, 'triangle', 0.12, 0.75);
+        setTimeout(() => this.playTone(1080, 'triangle', 0.24, 0.85), 85);
+      }
+      home() {
+        [587.33, 739.99, 880, 1174.66].forEach((f, i) => {
+          setTimeout(() => this.playTone(f, 'triangle', 0.22, 0.8, true), i * 70);
+        });
+      }
+      win() {
+        [523.25, 659.25, 783.99, 1046.50, 1318.51].forEach((f, i) => {
+          setTimeout(() => this.playTone(f, 'triangle', 0.4, 0.9, true), i * 100);
+        });
+      }
+      warningBeep() { this.playTone(850, 'sine', 0.08, 0.5); }
+    }
+    const sound = new LoudAudioMaster();
+
+    function triggerHaptic() {
+      if (navigator.vibrate) navigator.vibrate(80);
+    }
+
+    /* --- 3. WEBRTC & CHAT --- */
+    let localStream = null;
+    let peerConnection = null;
+    let remoteAudioElement = null;
+    let isMicOn = false;
+    let isSpeakerMuted = false;
+    const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+
+    async function toggleVoiceChat() {
+      const micBtn = document.getElementById('mic-toggle-btn');
+      if (!isMicOn) {
+        try {
+          localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+          isMicOn = true;
+          micBtn.classList.add('active');
+          micBtn.innerText = '🎙️ Mic On';
+          document.getElementById('avatar-red-box').classList.add('speaking');
+          if (isOnline && roomRef) initVoicePeer();
+        } catch (err) {
+          alert('Microphone permission required for voice chat!');
+        }
+      } else {
+        if (localStream) localStream.getTracks().forEach(track => track.stop());
+        if (peerConnection) { peerConnection.close(); peerConnection = null; }
+        isMicOn = false;
+        micBtn.classList.remove('active');
+        micBtn.innerText = '🎙️ Mic Off';
+        document.getElementById('avatar-red-box').classList.remove('speaking');
+      }
+    }
+
+    function toggleSpeaker() {
+      isSpeakerMuted = !isSpeakerMuted;
+      const spkBtn = document.getElementById('speaker-toggle-btn');
+      if (remoteAudioElement) remoteAudioElement.muted = isSpeakerMuted;
+      spkBtn.innerText = isSpeakerMuted ? '🔇 Muted' : '🔊 On';
+      spkBtn.classList.toggle('muted', isSpeakerMuted);
+    }
+
+    function initVoicePeer() {
+      if (!isOnline || !roomRef || !localStream) return;
+      peerConnection = new RTCPeerConnection(rtcConfig);
+      localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+
+      peerConnection.ontrack = (event) => {
+        if (!remoteAudioElement) {
+          remoteAudioElement = new Audio();
+          remoteAudioElement.autoplay = true;
+        }
+        remoteAudioElement.srcObject = event.streams[0];
+        remoteAudioElement.muted = isSpeakerMuted;
+        document.getElementById('avatar-yellow-box').classList.add('speaking');
+      };
+
+      peerConnection.onicecandidate = (event) => {
+        if (event.candidate) {
+          roomRef.child('signals/' + (myPlayerId === 0 ? 'hostCandidate' : 'guestCandidate')).set(JSON.stringify(event.candidate));
+        }
+      };
+
+      if (myPlayerId === 0) {
+        peerConnection.createOffer().then(offer => {
+          peerConnection.setLocalDescription(offer);
+          roomRef.child('signals/offer').set(JSON.stringify(offer));
+        });
+      }
+
+      roomRef.child('signals').on('value', async (snap) => {
+        const signals = snap.val();
+        if (!signals || !peerConnection) return;
+        if (myPlayerId === 2 && signals.offer && !peerConnection.currentRemoteDescription) {
+          await peerConnection.setRemoteDescription(new RTCSessionDescription(JSON.parse(signals.offer)));
+          const answer = await peerConnection.createAnswer();
+          await peerConnection.setLocalDescription(answer);
+          roomRef.child('signals/answer').set(JSON.stringify(answer));
+        }
+        if (myPlayerId === 0 && signals.answer && !peerConnection.currentRemoteDescription) {
+          await peerConnection.setRemoteDescription(new RTCSessionDescription(JSON.parse(signals.answer)));
+        }
+        if (myPlayerId === 0 && signals.guestCandidate) {
+          try { await peerConnection.addIceCandidate(new RTCIceCandidate(JSON.parse(signals.guestCandidate))); } catch (e) {}
+        }
+        if (myPlayerId === 2 && signals.hostCandidate) {
+          try { await peerConnection.addIceCandidate(new RTCIceCandidate(JSON.parse(signals.hostCandidate))); } catch (e) {}
+        }
+      });
+    }
+
+    function toggleChatDrawer() {
+      document.getElementById('chat-drawer').classList.toggle('open');
+    }
+
+    function sendChatMessage() {
+      const input = document.getElementById('chat-text-input');
+      const text = input.value.trim();
+      if (!text) return;
+      const payload = { senderId: myPlayerId, senderName: currentUsername, text: text, time: Date.now() };
+      if (isOnline && roomRef) roomRef.child('chat').push(payload);
+      else renderChatMessage(payload);
+      input.value = '';
+    }
+
+    function renderChatMessage(msg) {
+      const box = document.getElementById('chat-messages');
+      const div = document.createElement('div');
+      div.className = `chat-bubble ${msg.senderId === myPlayerId ? 'mine' : 'theirs'}`;
+      div.innerHTML = `<strong>${msg.senderName}:</strong> ${msg.text}`;
+      box.appendChild(div);
+      box.scrollTop = box.scrollHeight;
+    }
+
+    /* --- 4. BOARD COORDINATES & GAME ENGINE --- */
+    const COMMON_PATH = [
+      {r:6, c:1}, {r:6, c:2}, {r:6, c:3}, {r:6, c:4}, {r:6, c:5},
+      {r:5, c:6}, {r:4, c:6}, {r:3, c:6}, {r:2, c:6}, {r:1, c:6}, {r:0, c:6},
+      {r:0, c:7},
+      {r:0, c:8}, {r:1, c:8}, {r:2, c:8}, {r:3, c:8}, {r:4, c:8}, {r:5, c:8},
+      {r:6, c:9}, {r:6, c:10}, {r:6, c:11}, {r:6, c:12}, {r:6, c:13}, {r:6, c:14},
+      {r:7, c:14},
+      {r:8, c:14}, {r:8, c:13}, {r:8, c:12}, {r:8, c:11}, {r:8, c:10}, {r:8, c:9},
+      {r:9, c:8}, {r:10, c:8}, {r:11, c:8}, {r:12, c:8}, {r:13, c:8}, {r:14, c:8},
+      {r:14, c:7},
+      {r:14, c:6}, {r:13, c:6}, {r:12, c:6}, {r:11, c:6}, {r:10, c:6}, {r:9, c:6},
+      {r:8, c:5}, {r:8, c:4}, {r:8, c:3}, {r:8, c:2}, {r:8, c:1}, {r:8, c:0},
+      {r:7, c:0}, {r:6, c:0}
+    ];
+
+    const HOME_PATHS = {
+      0: [{r:13, c:7}, {r:12, c:7}, {r:11, c:7}, {r:10, c:7}, {r:9, c:7}, {r:8, c:7}],
+      2: [{r:1, c:7}, {r:2, c:7}, {r:3, c:7}, {r:4, c:7}, {r:5, c:7}, {r:6, c:7}]
+    };
+
+    const SAFE_POINTS = [0, 8, 13, 21, 26, 34, 39, 47];
+
+    const BASES = {
+      0: [{r:10.8, c:1.8}, {r:10.8, c:3.8}, {r:12.8, c:1.8}, {r:12.8, c:3.8}],
+      2: [{r:1.8, c:10.8}, {r:1.8, c:12.8}, {r:3.8, c:10.8}, {r:3.8, c:12.8}]
+    };
+
+    let tokens = [];
+    let currentTurn = 0;
+    let diceVal = 1;
+    let state = 'ROLL';
+    let validMoves = [];
+    let particles = [];
+    let animClock = 0;
+    let consecutiveSixes = 0;
+
+    let isOnline = false;
+    let myPlayerId = 0;
+    let roomCode = null;
+    let roomRef = null;
+    let turnTimerInterval = null;
+    let turnTimeLeft = 15;
+    let strikes = { 0: 0, 2: 0 };
+    let isMovingOptimistic = false;
+
+    const canvas = document.getElementById('boardCanvas');
+    const ctx = canvas.getContext('2d');
+    const statusMsg = document.getElementById('status-msg');
+    const diceRed = document.getElementById('dice-red');
+    const diceYellow = document.getElementById('dice-yellow');
+    const deckRed = document.getElementById('deck-red');
+    const deckYellow = document.getElementById('deck-yellow');
+    const timerRed = document.getElementById('timer-red');
+    const timerYellow = document.getElementById('timer-yellow');
+    const heartsRed = document.getElementById('hearts-red');
+    const heartsYellow = document.getElementById('hearts-yellow');
+    const topRoomBadge = document.getElementById('top-room-badge');
+    const topRoomCode = document.getElementById('top-room-code');
+
+    window.addEventListener('DOMContentLoaded', () => {
+      try {
+        const activeMatch = JSON.parse(sessionStorage.getItem('ludo_active_match') || 'null');
+        if (activeMatch && activeMatch.roomCode) {
+          document.getElementById('rejoin-prompt').style.display = 'block';
+        }
+      } catch(e) {}
+    });
+
+    function showPermanentRoomBadge(code) {
+      topRoomCode.innerText = code;
+      topRoomBadge.style.display = 'inline-block';
+ 
