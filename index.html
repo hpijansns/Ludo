@@ -6,7 +6,6 @@
   <meta name="theme-color" content="#070a13">
   <title>Ludo Pro - Player Access</title>
   
-  <!-- Firebase Compat Libraries -->
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 
@@ -193,6 +192,10 @@
 
     let currentMode = 'login';
 
+    function sanitizeKey(key) {
+      return key.replace(/[.#$\[\]@]/g, '_');
+    }
+
     window.addEventListener('DOMContentLoaded', () => {
       const existingAccount = localStorage.getItem('ludo_registered_user');
       if (existingAccount) {
@@ -213,16 +216,18 @@
 
     async function executeAuthAction() {
       const btn = document.getElementById('submit-btn');
-      const u = document.getElementById('username').value.trim().toLowerCase();
+      const rawUser = document.getElementById('username').value.trim().toLowerCase();
       const p = document.getElementById('password').value.trim();
 
-      if (!u || !p) {
+      if (!rawUser || !p) {
         alert("Kripya Username aur Password dono dalein!");
         return;
       }
 
+      const u = sanitizeKey(rawUser);
+
       if (!db) {
-        alert("Firebase connect nahi hua! Make sure page live server/HTTPS par chal raha hai.");
+        alert("Firebase connect nahi hua! Page refresh karein.");
         return;
       }
 
@@ -243,7 +248,8 @@
           }
 
           await userRef.set({
-            username: u,
+            username: rawUser,
+            safeUsername: u,
             password: p,
             coins: 1000,
             wins: 0,
@@ -251,8 +257,8 @@
             registeredAt: Date.now()
           });
 
-          localStorage.setItem('ludo_registered_user', u);
-          localStorage.setItem('ludo_user', JSON.stringify({ username: u, coins: 1000 }));
+          localStorage.setItem('ludo_registered_user', rawUser);
+          localStorage.setItem('ludo_user', JSON.stringify({ username: rawUser, safeUsername: u, coins: 1000 }));
           window.location.href = 'game.html';
         } else {
           const snap = await userRef.once('value');
@@ -272,13 +278,13 @@
             return;
           }
 
-          localStorage.setItem('ludo_registered_user', user.username);
-          localStorage.setItem('ludo_user', JSON.stringify({ username: user.username, coins: user.coins || 1000 }));
+          localStorage.setItem('ludo_registered_user', rawUser);
+          localStorage.setItem('ludo_user', JSON.stringify({ username: user.username || rawUser, safeUsername: u, coins: user.coins || 1000 }));
           window.location.href = 'game.html';
         }
       } catch (error) {
         console.error("Auth Error:", error);
-        alert("Database Error: " + error.message + "\n\n(Firebase Console me Realtime Database Rules me .read aur .write ko true karein)");
+        alert("Database Error: " + error.message);
         btn.disabled = false;
         btn.innerText = originalText;
       }
@@ -286,7 +292,7 @@
 
     function loginAsGuest() {
       const guestName = "Guest_" + Math.floor(1000 + Math.random() * 9000);
-      localStorage.setItem('ludo_user', JSON.stringify({ username: guestName, coins: 1000, isGuest: true }));
+      localStorage.setItem('ludo_user', JSON.stringify({ username: guestName, safeUsername: guestName, coins: 1000, isGuest: true }));
       window.location.href = 'game.html';
     }
   </script>
