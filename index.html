@@ -4,8 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="theme-color" content="#070a13">
-  <title>Ludo Pro - Player Access</title>
+  <title>Ludo Pro - Player Login & Signup</title>
   
+  <!-- Firebase Compat Libraries -->
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 
@@ -17,6 +18,7 @@
       --blue: #2563eb;
       --text: #f8fafc;
       --text-muted: #94a3b8;
+      --red: #ef4444;
     }
     * {
       box-sizing: border-box;
@@ -61,7 +63,7 @@
       background: #0f172a;
       padding: 4px;
       border-radius: 12px;
-      margin-bottom: 20px;
+      margin-bottom: 16px;
     }
     .tab-btn {
       flex: 1;
@@ -69,7 +71,7 @@
       border: none;
       color: var(--text-muted);
       padding: 10px;
-      font-weight: 700;
+      font-weight: 800;
       font-size: 0.9rem;
       border-radius: 8px;
       cursor: pointer;
@@ -79,21 +81,10 @@
       background: var(--bg-card);
       color: #fff;
     }
-    .account-badge {
-      display: none;
-      background: rgba(37, 99, 235, 0.2);
-      border: 1px solid rgba(37, 99, 235, 0.4);
-      color: #60a5fa;
-      padding: 6px 12px;
-      border-radius: 20px;
-      font-size: 0.82rem;
-      font-weight: 700;
-      margin-bottom: 16px;
-    }
     .input-field {
       width: 100%;
       background: var(--bg-card);
-      border: 1px solid rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.15);
       border-radius: 10px;
       padding: 13px;
       color: #fff;
@@ -118,22 +109,30 @@
       margin-top: 4px;
     }
     .btn-main:active { transform: scale(0.98); }
-    .btn-main:disabled { opacity: 0.6; cursor: not-allowed; }
     .btn-guest {
       width: 100%;
       background: #334155;
       color: #fff;
       border: none;
       border-radius: 10px;
-      padding: 11px;
+      padding: 12px;
       font-size: 0.9rem;
-      font-weight: 700;
+      font-weight: 800;
       cursor: pointer;
       margin-top: 10px;
     }
+    .btn-guest:active { transform: scale(0.98); }
+    .reset-link {
+      display: inline-block;
+      margin-top: 14px;
+      font-size: 0.8rem;
+      color: #60a5fa;
+      text-decoration: underline;
+      cursor: pointer;
+    }
     .admin-link {
       display: inline-block;
-      margin-top: 20px;
+      margin-top: 14px;
       font-size: 0.8rem;
       color: var(--text-muted);
       text-decoration: none;
@@ -147,22 +146,23 @@
     <div class="game-logo">LUDO PRO</div>
     <div class="tagline">Multiplayer Realtime & Voice Arena</div>
 
-    <div id="device-registered-badge" class="account-badge">
-      🔒 Registered Device • Login Required
-    </div>
-
+    <!-- Toggle Login / Sign Up -->
     <div id="tab-container" class="tab-switch">
-      <button id="tab-login" class="tab-btn active" onclick="switchTab('login')">Login</button>
-      <button id="tab-register" class="tab-btn" onclick="switchTab('register')">Sign Up</button>
+      <button type="button" id="tab-login" class="tab-btn active" onclick="switchTab('login')">Login</button>
+      <button type="button" id="tab-register" class="tab-btn" onclick="switchTab('register')">Sign Up</button>
     </div>
 
     <div>
-      <input type="text" id="username" class="input-field" placeholder="Username" autocomplete="username">
+      <input type="text" id="username" class="input-field" placeholder="Username (simple name ya email)" autocomplete="username">
       <input type="password" id="password" class="input-field" placeholder="Password" autocomplete="current-password">
       <button type="button" id="submit-btn" class="btn-main" onclick="executeAuthAction()">LOGIN TO PLAY</button>
     </div>
 
-    <button type="button" class="btn-guest" onclick="loginAsGuest()">🎮 Play As Guest (Instant 1,000 Coins)</button>
+    <button type="button" class="btn-guest" onclick="loginAsGuest()">🎮 Quick Play as Guest (1,000 Coins)</button>
+
+    <div>
+      <span class="reset-link" onclick="clearSavedData()">Switch Account / New User</span>
+    </div>
 
     <div>
       <a href="admin.html" class="admin-link">⚙️ Admin Panel</a>
@@ -182,12 +182,10 @@
 
     let db = null;
     try {
-      if (!firebase.apps.length) {
-        firebase.initializeApp(firebaseConfig);
-      }
+      if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
       db = firebase.database();
-    } catch(err) {
-      console.error("Firebase init failed:", err);
+    } catch(e) {
+      console.error("Firebase init failed:", e);
     }
 
     let currentMode = 'login';
@@ -196,14 +194,11 @@
       return key.replace(/[.#$\[\]@]/g, '_');
     }
 
+    // Auto-fill existing username if present
     window.addEventListener('DOMContentLoaded', () => {
-      const existingAccount = localStorage.getItem('ludo_registered_user');
-      if (existingAccount) {
-        document.getElementById('tab-container').style.display = 'none';
-        document.getElementById('device-registered-badge').style.display = 'inline-block';
-        document.getElementById('username').value = existingAccount;
-        document.getElementById('submit-btn').innerText = 'LOGIN TO PLAY';
-        currentMode = 'login';
+      const savedUser = localStorage.getItem('ludo_registered_user');
+      if (savedUser) {
+        document.getElementById('username').value = savedUser;
       }
     });
 
@@ -211,7 +206,16 @@
       currentMode = mode;
       document.getElementById('tab-login').classList.toggle('active', mode === 'login');
       document.getElementById('tab-register').classList.toggle('active', mode === 'register');
-      document.getElementById('submit-btn').innerText = (mode === 'login') ? 'LOGIN TO PLAY' : 'CREATE ACCOUNT (1,000 FREE COINS)';
+      document.getElementById('submit-btn').innerText = (mode === 'login') ? 'LOGIN TO PLAY' : 'CREATE ACCOUNT (FREE 1000 COINS)';
+    }
+
+    function clearSavedData() {
+      localStorage.removeItem('ludo_registered_user');
+      localStorage.removeItem('ludo_user');
+      document.getElementById('username').value = '';
+      document.getElementById('password').value = '';
+      switchTab('register');
+      alert("Form reset! Ab aap naya account bana sakte hain.");
     }
 
     async function executeAuthAction() {
@@ -226,28 +230,27 @@
 
       const u = sanitizeKey(rawUser);
 
-      if (!db) {
-        alert("Firebase connect nahi hua! Page refresh karein.");
-        return;
-      }
-
       btn.disabled = true;
       const originalText = btn.innerText;
-      btn.innerText = "Processing...";
+      btn.innerText = "Connecting...";
 
       try {
+        if (!db) {
+          throw new Error("Firebase connect nahi ho saka. Live server check karein.");
+        }
+
         const userRef = db.ref('users/' + u);
 
         if (currentMode === 'register') {
           const snap = await userRef.once('value');
           if (snap.exists()) {
-            alert('Yeh Username pehle se registered hai! Doosra username chunein.');
+            alert('Yeh Username pehle se maujood hai! "Login" tab par jayein ya doosra naam dalein.');
             btn.disabled = false;
             btn.innerText = originalText;
             return;
           }
 
-          await userRef.set({
+          const newUser = {
             username: rawUser,
             safeUsername: u,
             password: p,
@@ -255,19 +258,23 @@
             wins: 0,
             gamesPlayed: 0,
             registeredAt: Date.now()
-          });
+          };
 
+          await userRef.set(newUser);
           localStorage.setItem('ludo_registered_user', rawUser);
-          localStorage.setItem('ludo_user', JSON.stringify({ username: rawUser, safeUsername: u, coins: 1000 }));
+          localStorage.setItem('ludo_user', JSON.stringify(newUser));
           window.location.href = 'game.html';
+
         } else {
+          // LOGIN MODE
           const snap = await userRef.once('value');
           const user = snap.val();
 
           if (!user) {
-            alert('Account nahi mila! Pehle Sign Up karein.');
+            alert('Yeh account nahi mila! Kripya "Sign Up" tab par click karke pehle account banayein.');
             btn.disabled = false;
             btn.innerText = originalText;
+            switchTab('register');
             return;
           }
 
@@ -278,21 +285,32 @@
             return;
           }
 
-          localStorage.setItem('ludo_registered_user', rawUser);
-          localStorage.setItem('ludo_user', JSON.stringify({ username: user.username || rawUser, safeUsername: u, coins: user.coins || 1000 }));
+          localStorage.setItem('ludo_registered_user', user.username || rawUser);
+          localStorage.setItem('ludo_user', JSON.stringify({
+            username: user.username || rawUser,
+            safeUsername: u,
+            coins: user.coins !== undefined ? user.coins : 1000
+          }));
           window.location.href = 'game.html';
         }
-      } catch (error) {
-        console.error("Auth Error:", error);
-        alert("Database Error: " + error.message);
+      } catch (err) {
+        console.error("Auth Fail:", err);
+        alert("Error: " + err.message);
         btn.disabled = false;
         btn.innerText = originalText;
       }
     }
 
     function loginAsGuest() {
-      const guestName = "Guest_" + Math.floor(1000 + Math.random() * 9000);
-      localStorage.setItem('ludo_user', JSON.stringify({ username: guestName, safeUsername: guestName, coins: 1000, isGuest: true }));
+      const guestNum = Math.floor(1000 + Math.random() * 9000);
+      const guestName = "Guest_" + guestNum;
+      const guestData = {
+        username: guestName,
+        safeUsername: guestName,
+        coins: 1000,
+        isGuest: true
+      };
+      localStorage.setItem('ludo_user', JSON.stringify(guestData));
       window.location.href = 'game.html';
     }
   </script>
